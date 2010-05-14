@@ -83,7 +83,7 @@ namespace IWNetServer
             var sessions = (from session in server.Sessions
                             where session.HostXUID != client.XUID && (DateTime.Now - session.LastTouched).TotalSeconds < 120
                             orderby random.Next()
-                            select session).Take(20);
+                            select session).Take(17);
 
             var responsePacket = new MatchRequestListResponsePacket(request.ReplyType, request.Sequence, sessions);
 
