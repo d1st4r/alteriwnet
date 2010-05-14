@@ -1,5 +1,0 @@
-S:\Development\VSProjects\IWNetServer\IWNetServer\obj\Debug\ResolveAssemblyReference.cache
-S:\Development\VSProjects\IWNetServer\IWNetServer\bin\Debug\IWNetServer.exe
-S:\Development\VSProjects\IWNetServer\IWNetServer\bin\Debug\IWNetServer.pdb
-S:\Development\VSProjects\IWNetServer\IWNetServer\obj\Debug\IWNetServer.exe
-S:\Development\VSProjects\IWNetServer\IWNetServer\obj\Debug\IWNetServer.pdb
