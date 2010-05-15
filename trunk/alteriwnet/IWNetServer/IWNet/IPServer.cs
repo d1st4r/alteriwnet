@@ -133,11 +133,20 @@ namespace IWNetServer
                 }
 
                 // we don't have what client thinks is his port, but this is just an override anyway
-                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, (packet.GetSource().Port == 28960));
+                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, false);
 
                 var response = packet.MakeResponse();
                 responsePacket.Write(response.GetWriter());
                 response.Send();
+
+                if (packet.GetSource().Port == 28960)
+                {
+                    responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, true);
+
+                    response = packet.MakeResponse();
+                    responsePacket.Write(response.GetWriter());
+                    response.Send();
+                }
             }
 
             // and afterwards, update client's stuff
