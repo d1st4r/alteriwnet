@@ -60,8 +60,13 @@ namespace IWNetServer
                     UdpPacket packet = new UdpPacket(buffer, bytes, remoteIP, _socket);
 
                     // trigger in remote thread. it could be the 'upacket' is unneeded, but better safe than sorry with delegates
+#if !DEBUG
                     ThreadPool.QueueUserWorkItem(delegate (object upacket)
                     {
+#else
+                    object upacket = packet;
+#endif
+
                         try
                         {
                             if (PacketReceived != null)
@@ -73,7 +78,9 @@ namespace IWNetServer
                         {
                             Log.Error(string.Format("Error occurred in a processing call in server {0}: {1}", _name, ex.ToString()));
                         }
+#if !DEBUG
                     }, packet);
+#endif
 
                     Log.Debug(string.Format("Received packet at {0} from {1}:{2}", _name, remoteIP.Address, remoteIP.Port));
                 }

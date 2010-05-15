@@ -10,8 +10,11 @@ namespace IWNetServer
     {
         static void Main(string[] args)
         {
+#if !DEBUG
             Log.Initialize("IWNetServer.log", LogLevel.Error | LogLevel.Warning | LogLevel.Info, true);
-            //Log.Initialize("IWNetServer.log", LogLevel.All, true);
+#else
+            Log.Initialize("IWNetServer.log", LogLevel.All, true);
+#endif
             Log.Info("IWNetServer starting...");
 
             IPServer ipServer = new IPServer();

@@ -34,7 +34,10 @@ namespace IWNetServer
                 XUID = reader.ReadInt64();
                 GamerTag = reader.ReadNullString();
 
-                GameBuildTag = reader.ReadFixedString(72);
+                //GameBuildTag = reader.ReadFixedString(72);
+                GameBuildTag = reader.ReadNullString();
+
+                reader.ReadBytes(9);
 
                 if (reader.BaseStream.IsAtEOF())
                 {
