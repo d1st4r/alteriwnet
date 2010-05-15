@@ -41,11 +41,13 @@ namespace IWNetServer
     {
         public IPEndPoint Source { get; set; }
         public short Sequence { get; set; }
+        public bool NatOpen { get; set; }
 
-        public IPResponsePacket1(IPEndPoint source, short sequence)
+        public IPResponsePacket1(IPEndPoint source, short sequence, bool natOpen)
         {
             Source = source;
             Sequence = sequence;
+            NatOpen = natOpen;
         }
 
         public void Write(BinaryWriter writer)
@@ -53,8 +55,16 @@ namespace IWNetServer
             // unknown FFFFFFFF
             writer.Write(0xFFFFFFFF);
 
-            // string 'ipdetect'
-            writer.Write("ipdetect".ToCharArray()); // ToCharArray since (String) will prefix with length
+            if (!NatOpen)
+            {
+                // string 'ipdetect'
+                writer.Write("ipdetect".ToCharArray()); // ToCharArray since (String) will prefix with length
+            }
+            else
+            {
+                // OpenNAT overrides local NAT
+                writer.Write("OpenNAT".ToCharArray());
+            }
 
             // 00 00
             writer.Write((short)0);
@@ -122,7 +132,8 @@ namespace IWNetServer
                     return;
                 }
 
-                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence);
+                // we don't have what client thinks is his port, but this is just an override anyway
+                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, (packet.GetSource().Port == 28960));
 
                 var response = packet.MakeResponse();
                 responsePacket.Write(response.GetWriter());
