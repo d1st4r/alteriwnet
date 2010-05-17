@@ -197,6 +197,7 @@ namespace IWNetServer
                         // no return, we need to keep the version logged for later packets
                         Log.Warn(string.Format("Client {0} attempted to connect with disallowed version {1}.{2}.", request.GamerTag, request.GameVersion, request.GameBuild));
 
+                        // to send 'fake' data
                         allowedVersion = false;
                     }
 
@@ -241,9 +242,9 @@ namespace IWNetServer
                     else
                     {
                         var fakeStats = new List<LogStatistics>();
-                        fakeStats.Add(new LogStatistics(1, 28789));
-                        fakeStats.Add(new LogStatistics(2, 24932));
-                        fakeStats.Add(new LogStatistics(3, 25972));
+                        fakeStats.Add(new LogStatistics(1, 28789)); //up
+                        fakeStats.Add(new LogStatistics(2, 24932)); //da
+                        fakeStats.Add(new LogStatistics(3, 25972)); //te
 
                         for (short i = 4; i <= 19; i++)
                         {
