@@ -184,12 +184,15 @@ namespace IWNetServer
                 return;
             }
 
-            // TODO: check version allowed
-
             var client = Client.Get(basePacket.XUID);
             client.SetLastTouched();
             client.CurrentState = _playlist;
             client.SetLastMatched();
+
+            if (!Client.IsVersionAllowed(client.GameVersion, client.GameBuild))
+            {
+                return;
+            }
 
             var sessions = from session in Sessions
                            where session.HostXUID == client.XUID && (DateTime.Now - session.LastTouched).TotalSeconds < 120
