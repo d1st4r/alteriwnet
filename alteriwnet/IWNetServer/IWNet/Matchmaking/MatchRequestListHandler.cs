@@ -45,7 +45,7 @@ namespace IWNetServer
             Sessions = results;
         }
 
-        public void Write(BinaryWriter writer)
+        public void Write(BinaryWriter writer, bool allowed)
         {
             // reply type: 0x0 if not hosting yet, 0x1 if hosting
             writer.Write(ReplyType);
@@ -53,8 +53,17 @@ namespace IWNetServer
             // obviously, sequence
             writer.Write(Sequence);
 
-            // unknown bytes
-            writer.Write((short)0x0A05);
+            // 0A -> command handler, 05 still unkown
+            writer.Write((byte)0x05);
+
+            if (!allowed)
+            {
+                writer.Write((byte)0x0A);
+            }
+            else
+            {
+                writer.Write((byte)0);
+            }
 
             // result count
             writer.Write((short)Sessions.Count());
@@ -88,7 +97,7 @@ namespace IWNetServer
             var responsePacket = new MatchRequestListResponsePacket(request.ReplyType, request.Sequence, sessions);
 
             var response = packet.MakeResponse();
-            responsePacket.Write(response.GetWriter());
+            responsePacket.Write(response.GetWriter(), Client.IsVersionAllowed(client.GameVersion, client.GameBuild));
             response.Send();
 
             Log.Debug(string.Format("Sent {0} sessions to {1}", sessions.Count(), client.XUID.ToString("X16")));

@@ -74,8 +74,8 @@ namespace IWNetServer
 
         public static bool IsVersionAllowed(byte major, byte minor)
         {
-            // only allow 1 182
-            return (major == 1 && (minor == 182 || (minor > 30 && minor < 100)));
+            // only allow alterIWnet versions
+            return (major == 1 && ((minor > 30 && minor < 100)));
         }
 
         public static Client Get(long xuid)

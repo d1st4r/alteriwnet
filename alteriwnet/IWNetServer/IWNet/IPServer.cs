@@ -42,12 +42,14 @@ namespace IWNetServer
         public IPEndPoint Source { get; set; }
         public short Sequence { get; set; }
         public bool NatOpen { get; set; }
+        public bool BlockGame { get; set; }
 
-        public IPResponsePacket1(IPEndPoint source, short sequence, bool natOpen)
+        public IPResponsePacket1(IPEndPoint source, short sequence, bool natOpen, bool blockGame)
         {
             Source = source;
             Sequence = sequence;
             NatOpen = natOpen;
+            BlockGame = blockGame;
         }
 
         public void Write(BinaryWriter writer)
@@ -73,8 +75,15 @@ namespace IWNetServer
             writer.Write((byte)0);
             writer.Write((byte)Sequence);
 
-            // 3 odd bytes
-            writer.Write(new byte[] { 0x00, 0x14, 0x1B });
+            if (!BlockGame)
+            {
+                // 3 odd bytes
+                writer.Write(new byte[] { 0x00, 0x14, 0x1B });
+            }
+            else
+            {
+                writer.Write(new byte[] { 0x00, 0x14, 0x00 });
+            }
 
             // IP address
             writer.Write(Source.Address.GetAddressBytes().Reverse().ToArray());
@@ -132,8 +141,19 @@ namespace IWNetServer
                     return;
                 }
 
+                bool breakGame = false;
+
+                /*var lclient = Client.Get(request.XUID);
+                if (lclient.GameVersion != 0)
+                {
+                    if (!Client.IsVersionAllowed(lclient.GameVersion, lclient.GameBuild))
+                    {
+                        breakGame = true;
+                    }
+                }*/
+
                 // we don't have what client thinks is his port, but this is just an override anyway
-                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, false);
+                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, false, breakGame);
 
                 var response = packet.MakeResponse();
                 responsePacket.Write(response.GetWriter());
@@ -141,7 +161,7 @@ namespace IWNetServer
 
                 if (packet.GetSource().Port == 28960)
                 {
-                    responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, true);
+                    responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, true, breakGame);
 
                     response = packet.MakeResponse();
                     responsePacket.Write(response.GetWriter());
