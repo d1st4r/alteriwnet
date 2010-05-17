@@ -56,7 +56,7 @@ namespace IWNetServer
             // 0A -> command handler, 05 still unkown
             writer.Write((byte)0x05);
 
-            if (!allowed)
+            if (allowed)
             {
                 writer.Write((byte)0x0A);
             }
