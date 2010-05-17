@@ -189,12 +189,15 @@ namespace IWNetServer
                 }
                 else
                 {
+                    bool allowedVersion = true;
                     Log.Info(string.Format("Player connecting {0} from {1} version {2}.{3} XUID {4}", request.GamerTag, request.ExternalIP, request.GameVersion, request.GameBuild, request.XUID.ToString("X16")));
 
                     if (!Client.IsVersionAllowed(request.GameVersion, request.GameBuild))
                     {
                         // no return, we need to keep the version logged for later packets
                         Log.Warn(string.Format("Client {0} attempted to connect with disallowed version {1}.{2}.", request.GamerTag, request.GameVersion, request.GameBuild));
+
+                        allowedVersion = false;
                     }
 
                     var client = Client.Get(request.XUID);
@@ -230,7 +233,25 @@ namespace IWNetServer
                     */
 
                     var responsePacket = new LogResponsePacket1(client.XUID);
-                    responsePacket.SetStatistics(Client.GetStatistics());
+
+                    if (allowedVersion)
+                    {
+                        responsePacket.SetStatistics(Client.GetStatistics());
+                    }
+                    else
+                    {
+                        var fakeStats = new List<LogStatistics>();
+                        fakeStats.Add(new LogStatistics(1, 28789));
+                        fakeStats.Add(new LogStatistics(2, 24932));
+                        fakeStats.Add(new LogStatistics(3, 25972));
+
+                        for (short i = 4; i <= 19; i++)
+                        {
+                            fakeStats.Add(new LogStatistics(i, 1337));
+                        }
+
+                        responsePacket.SetStatistics(fakeStats);
+                    }
 
                     var response = packet.MakeResponse();
                     responsePacket.Write(response.GetWriter());

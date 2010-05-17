@@ -23,7 +23,7 @@ namespace IWNetServer
             LogServer logServer = new LogServer();
             logServer.Start();
 
-            for (byte i = 1; i <= 17; i++)
+            for (byte i = 1; i <= 19; i++)
             {
                 MatchServer currentMatchServer = new MatchServer(i);
                 currentMatchServer.Start();
