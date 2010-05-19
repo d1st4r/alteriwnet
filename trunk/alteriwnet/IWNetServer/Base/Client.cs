@@ -97,6 +97,20 @@ namespace IWNetServer
 
             return availableClients.ToList();
         }
+
+        public static short GetPlaylistVersion()
+        {
+            if (File.Exists(@"pc\mp_playlists.txt"))
+            {
+                var file = File.OpenText(@"pc\mp_playlists.txt");
+                var data = file.ReadToEnd().Trim();
+                file.Close();
+
+                return short.Parse(data);
+            }
+
+            return 0x17B;
+        }
         #endregion
 
         static Client()
