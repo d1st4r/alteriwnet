@@ -111,12 +111,10 @@ namespace IWNetServer
                 statistic.Write(writer);
             }
             
-            // some other unknown stuff, possibly 17B (mappack?)
-            writer.Write(new byte[] { 0x00, 0x7B, 0x01, 0x00 });
-
-            // and a nice ugly footer
-            writer.Write(0);
             writer.Write((byte)0);
+            writer.Write(Client.GetPlaylistVersion());
+            writer.Write(0);
+            writer.Write((short)0);
         }
     }
 
