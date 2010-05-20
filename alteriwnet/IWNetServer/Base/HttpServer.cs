@@ -65,6 +65,27 @@ namespace IWNetServer
             respStatus.Add(503, "503 Service Unavailable");
         }
 
+        static Dictionary<long, int> connections = new Dictionary<long, int>();
+
+        public static void ClearConnections()
+        {
+            connections.Clear();
+        }
+
+        public const int MAX_CONNECTIONS_PER_5_SECONDS = 10;
+
+        public bool IncreaseConnections(long client)
+        {
+            if (!connections.ContainsKey(client))
+            {
+                connections.Add(client, 0);
+            }
+
+            connections[client]++;
+
+            return (connections[client] <= MAX_CONNECTIONS_PER_5_SECONDS);
+        }
+
         public void Listen()
         {
             bool done = false;
@@ -75,12 +96,28 @@ namespace IWNetServer
 
             while (!done)
             {
-                WriteLog("Waiting for connection...");
-                CsHTTPRequest newRequest
-                               = new CsHTTPRequest(listener.AcceptTcpClient(), this);
-                Thread Thread = new Thread(new ThreadStart(newRequest.Process));
-                Thread.Name = "HTTP Request";
-                Thread.Start();
+                try
+                {
+                    WriteLog("Waiting for connection...");
+                    var client = listener.AcceptTcpClient();
+                    var ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.Address;
+
+                    if (IncreaseConnections(ip))
+                    {
+                        CsHTTPRequest newRequest
+                                       = new CsHTTPRequest(client, this);
+                        /*Thread Thread = new Thread(new ThreadStart(newRequest.Process));
+                        Thread.Name = "HTTP Request";
+                        Thread.Start();*/
+
+                        ThreadPool.QueueUserWorkItem(a => newRequest.Process());
+                    }
+                    else
+                    {
+                        client.Client.Close();
+                    }
+                }
+                catch { }
             }
 
         }

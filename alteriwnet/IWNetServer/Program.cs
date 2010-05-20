@@ -37,6 +37,7 @@ namespace IWNetServer
                 try
                 {
                     Client.UpdateBanList();
+                    HttpHandler.ClearConnections();
                 }
                 catch (Exception e) { Log.Error(e.ToString()); }
 
