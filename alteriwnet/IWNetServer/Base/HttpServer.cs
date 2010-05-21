@@ -72,7 +72,7 @@ namespace IWNetServer
             connections.Clear();
         }
 
-        public const int MAX_CONNECTIONS_PER_5_SECONDS = 10;
+        public const int MAX_CONNECTIONS_PER_5_SECONDS = 5;
 
         public bool IncreaseConnections(long client)
         {
