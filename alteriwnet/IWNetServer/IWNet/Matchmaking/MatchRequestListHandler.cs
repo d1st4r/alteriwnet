@@ -90,7 +90,7 @@ namespace IWNetServer
             // match hosts
             // TODO: possibly skew 'preferred' players like XBL... 'random' isn't really a matchmaking algorithm
             var sessions = (from session in server.Sessions
-                            where session.HostXUID != client.XUID && (DateTime.Now - session.LastTouched).TotalSeconds < 120
+                            where session.HostXUID != client.XUID && (DateTime.Now - session.LastTouched).TotalSeconds < 60
                             orderby random.Next()
                             select session).Take(17);
 
