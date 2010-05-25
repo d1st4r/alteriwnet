@@ -59,7 +59,7 @@ namespace IWNetServer
                         totalPlayers = 0;
                         foreach (var server in MatchServer.Servers)
                         {
-                            var cnt = server.Value.Sessions.Count(sess => (DateTime.Now - sess.LastTouched).TotalSeconds < 120);
+                            var cnt = server.Value.Sessions.Count(sess => (DateTime.Now - sess.LastTouched).TotalSeconds < 60);
 
                             retString += string.Format("lobbies{0}={1}\r\n", server.Key, cnt);
                             totalPlayers += cnt;
