@@ -26,7 +26,6 @@ namespace IWNetServer
 
         public void Read(BinaryReader reader)
         {
-
             try
             {
                 reader.ReadByte();
@@ -76,11 +75,13 @@ namespace IWNetServer
     {
         public long XUID { get; set; }
         public List<LogStatistics> Statistics { get; set; }
+        public byte Error { get; set; }
 
         public LogResponsePacket1(long xuid)
         {
             XUID = xuid;
             Statistics = new List<LogStatistics>();
+            Error = 0;
         }
 
         public void SetStatistics(List<LogStatistics> statistics)
@@ -88,33 +89,58 @@ namespace IWNetServer
             Statistics = statistics;
         }
 
+        public void SetBetaClosed()
+        {
+            Error = 3;
+        }
+
+        public void SetBanned()
+        {
+            Error = 4;
+        }
+
+        public void SetOldBuild()
+        {
+            Error = 5;
+        }
+
         public void Write(BinaryWriter writer)
         {
             // header stuff
-            writer.Write(new byte[] { 0x0E, 0x01, 0x00 });
+            //writer.Write(new byte[] { 0x0E, 0x01, 0x04 });
+            writer.Write((byte)0x0E); // LSP
+            writer.Write((byte)0x01); // LSP_HELLO
+            writer.Write((byte)Error);
+            //writer.Write((byte)0x05); // YOU HAVE BEEN BANNED FROM MODERN WARFARE 2
 
-            // XUID
-            writer.Write(XUID);
-
-            // some data stuff I don't know about
-            writer.Write((short)5);
-            writer.Write((short)150);
-            writer.Write((short)300);
-            writer.Write((short)4);
-
-            // entry count!
-            writer.Write(Statistics.Count);
-
-            // statistics here
-            foreach (var statistic in Statistics)
+            // only send more packets if no error was found
+            if (Error == 0)
             {
-                statistic.Write(writer);
+                // XUID
+                writer.Write(XUID);
+
+                // some data stuff I don't know about
+                writer.Write((short)5);
+                writer.Write((short)150);
+                writer.Write((short)300);
+
+                writer.Write((short)4); // maybe 04 00?
+
+                // entry count!
+                writer.Write(Statistics.Count);
+
+                // statistics here
+                foreach (var statistic in Statistics)
+                {
+                    statistic.Write(writer);
+                }
+
+                writer.Write((byte)0);
+                writer.Write(Client.GetPlaylistVersion());
+                writer.Write(0);
+                writer.Write((short)0);
             }
-            
-            writer.Write((byte)0);
-            writer.Write(Client.GetPlaylistVersion());
-            writer.Write(0);
-            writer.Write((short)0);
+
         }
     }
 
@@ -188,7 +214,7 @@ namespace IWNetServer
                 else
                 {
                     bool allowedVersion = true;
-                    Log.Info(string.Format("Player connecting {0} from {1} version {2}.{3} XUID {4}", request.GamerTag, request.ExternalIP, request.GameVersion, request.GameBuild, request.XUID.ToString("X16")));
+                    Log.Data(string.Format("Player connecting {0} from {1} version {2}.{3} XUID {4}", request.GamerTag, request.ExternalIP, request.GameVersion, request.GameBuild, request.XUID.ToString("X16")));
 
                     if (!Client.IsVersionAllowed(request.GameVersion, request.GameBuild))
                     {
@@ -250,12 +276,75 @@ namespace IWNetServer
                         }
 
                         responsePacket.SetStatistics(fakeStats);
+
+                        /*if (request.GameBuild < 40)
+                        {
+                            responsePacket.SetBetaClosed();
+                        }
+                        else
+                        {*/
+                            responsePacket.SetOldBuild();
+                        //}
+                    }
+
+                    if ((request.XUID & 0xFFFFFFFF) == 2)
+                    {
+                        Log.Info(string.Format("Non-allowed client (IDGEN) (XUID {0}) tried to connect", request.XUID));
+                        responsePacket.SetBetaClosed();
+                    }
+
+                    if (!Client.IsAllowed(request.XUID))
+                    {
+                        Log.Info(string.Format("Non-allowed client (XUID {0}) tried to connect", request.XUID));
+                        responsePacket.SetBanned();
+                    }
+
+                    if (!Client.IsAllowed(client.XUIDAlias))
+                    {
+                        Log.Info(string.Format("Non-allowed client (XUID {0}) tried to connect", request.XUID));
+                        responsePacket.SetBanned();
+                    }
+
+                    var ipAddress = packet.GetSource().Address;
+
+                    if (!Client.IsAllowed(ipAddress))
+                    {
+                        Log.Info(string.Format("Non-allowed client (IP {0}) tried to connect", ipAddress));
+                        responsePacket.SetBanned();
+                    }
+
+                    if (!packet.Secure)
+                    {
+                        if (allowedVersion)
+                        {
+                            Log.Info(string.Format("Client (IP {0}) tried to connect with insecure packet.", ipAddress));
+                        }
+
+                        responsePacket.SetOldBuild();
                     }
 
                     var response = packet.MakeResponse();
                     responsePacket.Write(response.GetWriter());
                     response.Send();
                 }
+            }
+            else if (type == 0xFD)
+            {
+                if (!packet.Secure)
+                {
+                    return;
+                }
+
+                long realID = (0x0110000100000000 | reader.ReadInt32());
+                long fakeID = (0x0110000100000000 | reader.ReadInt32());
+
+                if (realID == fakeID)
+                {
+                    return;
+                }
+
+                var client = Client.Get(realID);
+                client.XUIDAlias = fakeID;
             }
         }
     }

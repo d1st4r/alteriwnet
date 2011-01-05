@@ -9,14 +9,17 @@ namespace IWNetServer
     {
         public void HandleCommand(MatchServer server, Client client, UdpPacket packet, MatchBaseRequestPacket baseRequest)
         {
-            var sessions = from session in server.Sessions
-                           where session.HostXUID == client.XUID
-                           select session;
-
-            if (sessions.Count() > 0)
+            lock (server.Sessions)
             {
-                var session = sessions.First();
-                session.SetLastTouched();
+                var sessions = from session in server.Sessions
+                               where session.HostXUID == client.XUID
+                               select session;
+
+                if (sessions.Count() > 0)
+                {
+                    var session = sessions.First();
+                    session.SetLastTouched();
+                }
             }
         }
     }

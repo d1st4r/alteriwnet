@@ -16,7 +16,8 @@ namespace IWNetServer
         Info = 2,
         Warning = 4,
         Error = 8,
-        All = 15
+        Data = 16,
+        All = 31
     }
 
     public static class Log
@@ -85,6 +86,11 @@ namespace IWNetServer
 
             Console.WriteLine(text);
 
+            if (!MayWriteType(level))
+            {
+                return;
+            }
+
             _logWriter.WriteLine(text);
             _logWriter.Flush();
         }
@@ -99,16 +105,20 @@ namespace IWNetServer
         }
 
         /// <summary>
+        /// Writes data to the log file.
+        /// </summary>
+        /// <param name="message">The message to be written.</param>
+        public static void Data(String message)
+        {
+            Write(message, LogLevel.Data);
+        }
+
+        /// <summary>
         /// Writes an error to the log file.
         /// </summary>
         /// <param name="message">The message to be written.</param>
         public static void Error(String message)
         {
-            if (!MayWriteType(LogLevel.Error))
-            {
-                return;
-            }
-
             Write(message, LogLevel.Error);
         }
 
@@ -118,11 +128,6 @@ namespace IWNetServer
         /// <param name="message">The message to be written.</param>
         public static void Warn(String message)
         {
-            if (!MayWriteType(LogLevel.Warning))
-            {
-                return;
-            }
-
             Write(message, LogLevel.Warning);
         }
 
@@ -132,11 +137,6 @@ namespace IWNetServer
         /// <param name="message">The message to be written.</param>
         public static void Info(String message)
         {
-            if (!MayWriteType(LogLevel.Info))
-            {
-                return;
-            }
-
             Write(message, LogLevel.Info);
         }
 

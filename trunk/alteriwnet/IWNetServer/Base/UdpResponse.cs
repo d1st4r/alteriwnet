@@ -17,10 +17,13 @@ namespace IWNetServer
         private IPEndPoint _ipEndpoint;
         private Socket _socket;
 
-        public UdpResponse(IPEndPoint ipEndpoint, Socket socket)
+        private string _server;
+
+        public UdpResponse(IPEndPoint ipEndpoint, Socket socket, string server)
         {
             _ipEndpoint = ipEndpoint;
             _socket = socket;
+            _server = server;
 
             _outStream = new MemoryStream();
             _outWriter = new BinaryWriter(_outStream, Encoding.ASCII);
@@ -48,6 +51,30 @@ namespace IWNetServer
             _socket.SendTo(reply, reply.Length, SocketFlags.None, _ipEndpoint);
 
             _outWriter.Close();
+
+#if DEBUG
+            int i = 0;
+
+            foreach (byte data in reply)
+            {
+                if (i == 0)
+                {
+                    Console.Write(_server + ": ");
+                }
+
+                Console.Write(data.ToString("X2") + " ");
+
+                i++;
+
+                if (i == 16)
+                {
+                    Console.WriteLine();
+                    i = 0;
+                }
+            }
+
+            Console.WriteLine();
+#endif
         }
     }
 }
