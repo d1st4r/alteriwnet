@@ -174,6 +174,16 @@ namespace IWNetServer
                     return;
                 }
 
+                // only allow client to flag themselves, not other people
+                var nativeClient = Client.Get(xuid);
+
+                if (nativeClient.ExternalIP.Address != packet.GetSource().Address) // only used address, port might differ,
+                                                                                   // which likely explains why jerbob's fix caused
+                                                                                   // false flaggings due to missed heartbeats.
+                {
+                    return;
+                }
+
                 var client = Get(xuid);
                 client.Unclean = (status != 0xCA3E && status > 0);
 
