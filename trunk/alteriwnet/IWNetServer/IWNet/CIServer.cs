@@ -168,6 +168,12 @@ namespace IWNetServer
                 var xuid = (0x0110000100000000 | nreader.ReadUInt32());
                 var status = nreader.ReadUInt16();
 
+                // prevent unknown clients from being logged
+                if (!Client.Exists(xuid))
+                {
+                    return;
+                }
+
                 var client = Get(xuid);
                 client.Unclean = (status != 0xCA3E && status > 0);
 

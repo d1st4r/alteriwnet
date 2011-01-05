@@ -157,6 +157,11 @@ namespace IWNetServer
                 canBeSafelyDeleted = null; // possibly to help the GC?
             }
         }
+
+        public static bool Exists(long xuid)
+        {
+            return XUIDClients.ContainsKey(xuid) && XUIDClients[xuid].GameBuild > 0;
+        }
         #endregion
 
         static Client()
