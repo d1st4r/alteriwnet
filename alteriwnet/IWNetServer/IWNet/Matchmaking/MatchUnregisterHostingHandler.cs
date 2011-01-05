@@ -62,6 +62,11 @@ namespace IWNetServer
             {
                 var session = sessions.First();
                 server.Sessions.Remove(session);
+
+                if (ServerParser.Servers.ContainsKey(session.ExternalIP))
+                {
+                    ServerParser.Servers.Remove(session.ExternalIP);
+                }
             }
 
             Log.Debug(string.Format("{0} unregistered their session", client.XUID.ToString("X16")));

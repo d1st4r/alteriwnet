@@ -78,29 +78,96 @@ namespace IWNetServer
 
     public class MatchRequestListHandler : IMatchCommandHandler
     {
+        GeoIPCountry geo;
+
+        public MatchRequestListHandler()
+        {
+            try
+            {
+                geo = new GeoIPCountry("GeoIP.dat");
+            } catch {}
+        }
+
         public void HandleCommand(MatchServer server, Client client, UdpPacket packet, MatchBaseRequestPacket baseRequest)
         {
+            if (!packet.Secure) return;
+
             var random = new Random();
             var reader = packet.GetReader();
             var request = new MatchRequestListRequestPacket(reader);
             var playlist = server.Playlist;
+            var country = "";
+
+            try
+            {
+                country = geo.GetCountryCode(client.ExternalIP.Address);
+            }
+            catch { }
 
             client.CurrentState = playlist; // set player as being in this playlist
 
+            var unclean = CIServer.IsUnclean(client.XUID, packet.GetSource().Address) || CIServer.IsUnclean(client.XUIDAlias, packet.GetSource().Address);
+
             // match hosts
             // TODO: possibly skew 'preferred' players like XBL... 'random' isn't really a matchmaking algorithm
-            var sessions = (from session in server.Sessions
-                            where session.HostXUID != client.XUID && (DateTime.Now - session.LastTouched).TotalSeconds < 60
-                            orderby random.Next()
-                            select session).Take(17);
+            lock (server.Sessions)
+            {
+                IEnumerable<MatchSession> sessions = null;
 
-            var responsePacket = new MatchRequestListResponsePacket(request.ReplyType, request.Sequence, sessions);
+                if (client.GameBuild < 47)
+                {
+                    sessions = (from session in server.Sessions
+                                where /*session.HostXUID != client.XUID && */(DateTime.Now - session.LastTouched).TotalSeconds < 60 && session.Unclean == unclean
+                                orderby random.Next()
+                                select session).Take(19);
+                }
+                else
+                {
+                    var localsessions = (from session in server.Sessions
+                                         where (DateTime.Now - session.LastTouched).TotalSeconds < 60 && session.Unclean == unclean && session.Country == country
+                                         orderby random.Next()
+                                         select session).Take(20);
 
-            var response = packet.MakeResponse();
-            responsePacket.Write(response.GetWriter(), Client.IsVersionAllowed(client.GameVersion, client.GameBuild));
-            response.Send();
+                    var remaining = (50 - localsessions.Count());
 
-            Log.Debug(string.Format("Sent {0} sessions to {1}", sessions.Count(), client.XUID.ToString("X16")));
+                    var othersessions = (from session in server.Sessions
+                                         where /*session.HostXUID != client.XUID && */(DateTime.Now - session.LastTouched).TotalSeconds < 60 && session.Unclean == unclean
+                                         orderby random.Next()
+                                         select session).Take(remaining);
+
+                    sessions = localsessions.Concat(othersessions);
+                }
+
+                if (unclean)
+                {
+                    var list = sessions.ToList();
+                    var i = 0;
+
+                    while (list.Count < 19)
+                    {
+                        list.Add(new MatchSession()
+                        {
+                            Clients = new List<MatchSessionClient>(),
+                            ExternalIP = new IPEndPoint(0x7F000001, 28960 + i),
+                            GameID = i,
+                            HostXUID = i + 123,
+                            InternalIP = new IPEndPoint(0x7F000001, 28960 + i)
+                        });
+
+                        i++;
+                    }
+
+                    sessions = list.Take(19);
+                }
+
+                var responsePacket = new MatchRequestListResponsePacket(request.ReplyType, request.Sequence, sessions);
+
+                var response = packet.MakeResponse();
+                responsePacket.Write(response.GetWriter(), Client.IsVersionAllowed(client.GameVersion, client.GameBuild));
+                response.Send();
+
+                Log.Debug(string.Format("Sent {0} sessions to {1}", sessions.Count(), client.XUID.ToString("X16")));
+            }
         }
     }
 }

@@ -106,18 +106,22 @@ namespace IWNetServer
                     {
                         CsHTTPRequest newRequest
                                        = new CsHTTPRequest(client, this);
-                        /*Thread Thread = new Thread(new ThreadStart(newRequest.Process));
+                        Thread Thread = new Thread(new ThreadStart(newRequest.Process));
                         Thread.Name = "HTTP Request";
-                        Thread.Start();*/
+                        Thread.Start();
 
-                        ThreadPool.QueueUserWorkItem(a => newRequest.Process());
+                        // threadpool is limited, use just a thread
+                        //ThreadPool.QueueUserWorkItem(a => newRequest.Process());
                     }
                     else
                     {
                         client.Client.Close();
                     }
                 }
-                catch { }
+                catch (Exception e)
+                {
+                    Log.Error(e.ToString());
+                }
             }
 
         }
@@ -422,48 +426,52 @@ namespace IWNetServer
 
                 // if (HTTPResponse.status == (int)RespState.OK)
 
-                this.Parent.OnResponse(ref this.HTTPRequest,
-                                       ref this.HTTPResponse);
-
-                string HeadersString = this.HTTPResponse.version + " "
-                   + this.Parent.respStatus[this.HTTPResponse.status] + "\r\n";
-
-                foreach (var Header in this.HTTPResponse.Headers)
+                if (HTTPRequest.URL != null)
                 {
-                    HeadersString += Header.Key + ": " + Header.Value + "\r\n";
-                }
+                    HTTPRequest.URL = HTTPRequest.URL.Replace('\\', '/');
 
-                HeadersString += "\n";
-                byte[] bHeadersString = Encoding.ASCII.GetBytes(HeadersString);
+                    this.Parent.OnResponse(ref this.HTTPRequest,
+                                           ref this.HTTPResponse);
 
-                // Send headers   
+                    string HeadersString = this.HTTPResponse.version + " "
+                       + this.Parent.respStatus[this.HTTPResponse.status] + "\r\n";
 
-                ns.Write(bHeadersString, 0, bHeadersString.Length);
-
-                // Send body
-
-                if (this.HTTPResponse.BodyData != null)
-                {
-                    ns.Write(this.HTTPResponse.BodyData, 0,
-                             this.HTTPResponse.BodyData.Length);
-                }
-
-                if (this.HTTPResponse.fs != null)
-                {
-                    using (this.HTTPResponse.fs)
+                    foreach (var Header in this.HTTPResponse.Headers)
                     {
-                        byte[] b = new byte[client.SendBufferSize];
-                        int bytesRead;
-                        while ((bytesRead
-                                    = this.HTTPResponse.fs.Read(b, 0, b.Length)) > 0)
-                        {
-                            ns.Write(b, 0, bytesRead);
-                        }
+                        HeadersString += Header.Key + ": " + Header.Value + "\r\n";
+                    }
 
-                        this.HTTPResponse.fs.Close();
+                    HeadersString += "\n";
+                    byte[] bHeadersString = Encoding.ASCII.GetBytes(HeadersString);
+
+                    // Send headers   
+
+                    ns.Write(bHeadersString, 0, bHeadersString.Length);
+
+                    // Send body
+
+                    if (this.HTTPResponse.BodyData != null)
+                    {
+                        ns.Write(this.HTTPResponse.BodyData, 0,
+                                 this.HTTPResponse.BodyData.Length);
+                    }
+
+                    if (this.HTTPResponse.fs != null)
+                    {
+                        using (this.HTTPResponse.fs)
+                        {
+                            byte[] b = new byte[client.SendBufferSize];
+                            int bytesRead;
+                            while ((bytesRead
+                                        = this.HTTPResponse.fs.Read(b, 0, b.Length)) > 0)
+                            {
+                                ns.Write(b, 0, bytesRead);
+                            }
+
+                            this.HTTPResponse.fs.Close();
+                        }
                     }
                 }
-
             }
             catch (Exception e)
             {

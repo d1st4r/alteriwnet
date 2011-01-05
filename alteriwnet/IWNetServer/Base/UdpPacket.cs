@@ -17,7 +17,11 @@ namespace IWNetServer
         private IPEndPoint _ipEndpoint;
         private Socket _socket;
 
-        public UdpPacket(byte[] input, int length, IPEndPoint ipEndpoint, Socket socket)
+        private string _server;
+
+        private bool _secure;
+
+        public UdpPacket(byte[] input, int length, IPEndPoint ipEndpoint, Socket socket, string server, bool encrypted)
         {
             _inStream = new MemoryStream();
             _inStream.Write(input, 0, length);
@@ -27,6 +31,10 @@ namespace IWNetServer
 
             _ipEndpoint = ipEndpoint;
             _socket = socket;
+
+            _server = server;
+
+            _secure = encrypted;
         }
 
         ~UdpPacket()
@@ -51,8 +59,17 @@ namespace IWNetServer
 
         public UdpResponse MakeResponse()
         {
-            return new UdpResponse(_ipEndpoint, _socket);
+            return new UdpResponse(_ipEndpoint, _socket, _server);
         }
+
+        public bool Secure
+        {
+            get
+            {
+                return _secure;
+            }
+        }
+
     }
 
     public class UdpPacketReceivedEventArgs : EventArgs

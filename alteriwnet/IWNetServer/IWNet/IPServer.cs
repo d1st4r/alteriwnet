@@ -75,7 +75,7 @@ namespace IWNetServer
             writer.Write((byte)0);
             writer.Write((byte)Sequence);
 
-            if (!BlockGame)
+            if (true)
             {
                 // 3 odd bytes
                 writer.Write(new byte[] { 0x00, 0x14, 0x1B });
@@ -89,7 +89,14 @@ namespace IWNetServer
             writer.Write(Source.Address.GetAddressBytes().Reverse().ToArray());
 
             // source port
-            writer.Write(Source.Port);
+            if (!BlockGame)
+            {
+                writer.Write(Source.Port);
+            }
+            else
+            {
+                writer.Write(25);
+            }
 
             // more nice bytes
             writer.Write(new byte[] { 0x42, 0x37, 0x13, 0x37, 0x13, 0x42 });
@@ -127,21 +134,13 @@ namespace IWNetServer
             {
                 Log.Debug("Handling IP request from " + request.XUID.ToString("X16"));
 
-                if (!Client.IsAllowed(request.XUID))
-                {
-                    Log.Info(string.Format("Non-allowed client (XUID {0}) tried to connect", request.XUID));
-                    return;
-                }
-
-                var ipAddress = packet.GetSource().Address;
-
-                if (!Client.IsAllowed(ipAddress))
-                {
-                    Log.Info(string.Format("Non-allowed client (IP {0}) tried to connect", ipAddress));
-                    return;
-                }
-
                 bool breakGame = false;
+                bool breakNAT = false;
+
+                if (!Client.IsHostAllowed(request.XUID))
+                {
+                    breakNAT = true;
+                }
 
                 /*var lclient = Client.Get(request.XUID);
                 if (lclient.GameVersion != 0)
@@ -153,15 +152,15 @@ namespace IWNetServer
                 }*/
 
                 // we don't have what client thinks is his port, but this is just an override anyway
-                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, false, breakGame);
+                var responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, false, breakNAT);
 
                 var response = packet.MakeResponse();
                 responsePacket.Write(response.GetWriter());
                 response.Send();
 
-                if (packet.GetSource().Port == 28960)
+                if (!breakNAT && packet.GetSource().Port >= 28960 && packet.GetSource().Port <= 29960)
                 {
-                    responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, true, breakGame);
+                    responsePacket = new IPResponsePacket1(packet.GetSource(), request.Sequence, true, false);
 
                     response = packet.MakeResponse();
                     responsePacket.Write(response.GetWriter());

@@ -21,14 +21,15 @@ namespace IWNetServer
 
             while (true)
             {
-                reader.Read(buffer, 0, 1);
+                var length = reader.Read(buffer, 0, 1);
 
-                if (buffer[0] == 0)
+                if (length == 0 || buffer[0] == 0)
                 {
                     break;
                 }
 
                 retval += buffer[0];
+                buffer[0] = '\0';
             }
 
             return retval;

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -16,6 +17,8 @@ namespace IWNetServer
         private Socket _socket;
         private Thread _thread;
 
+        private static RSACryptoServiceProvider _rsa;
+
         public event EventHandler<UdpPacketReceivedEventArgs> PacketReceived;
 
         public UdpServer(ushort port, string name)
@@ -26,6 +29,12 @@ namespace IWNetServer
 
         public void Start()
         {
+            if (_rsa == null)
+            {
+                _rsa = new RSACryptoServiceProvider(2048);
+                _rsa.FromXmlString(File.ReadAllText("key-private.xml"));
+            }
+
             _thread = new Thread(new ThreadStart(Run));
             _thread.Start();
         }
@@ -33,6 +42,7 @@ namespace IWNetServer
         private void Run()
         {
             IPEndPoint localEP = new IPEndPoint(IPAddress.Any, _port);
+            //IPEndPoint localEP = new IPEndPoint(IPAddress.Parse("109.237.208.88"), _port);
 
             _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             _socket.Bind(localEP);
@@ -56,11 +66,30 @@ namespace IWNetServer
                     int bytes = _socket.ReceiveFrom(buffer, ref remoteEP);
                     IPEndPoint remoteIP = (IPEndPoint)remoteEP;
 
+                    // decrypt a possible RSA packet
+                    var encrypted = false;
+
+                    var pbuffer = buffer;
+
+                    if (buffer[0] == 0xFE)
+                    {
+                        var cryptBuffer = new byte[bytes - 1];
+                        Array.Copy(buffer, 1, cryptBuffer, 0, cryptBuffer.Length);
+
+                        encrypted = true;
+
+                        pbuffer = _rsa.Decrypt(cryptBuffer, true);
+
+                        bytes = pbuffer.Length;
+                    }
+
+                    encrypted = true;
+
                     // trigger packet handler
-                    UdpPacket packet = new UdpPacket(buffer, bytes, remoteIP, _socket);
+                    UdpPacket packet = new UdpPacket(pbuffer, bytes, remoteIP, _socket, _name, encrypted);
 
                     // trigger in remote thread. it could be the 'upacket' is unneeded, but better safe than sorry with delegates
-#if !DEBUG
+#if NO
                     ThreadPool.QueueUserWorkItem(delegate (object upacket)
                     {
 #else
@@ -78,7 +107,7 @@ namespace IWNetServer
                         {
                             Log.Error(string.Format("Error occurred in a processing call in server {0}: {1}", _name, ex.ToString()));
                         }
-#if !DEBUG
+#if NO
                     }, packet);
 #endif
 

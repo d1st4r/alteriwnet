@@ -48,12 +48,14 @@
   <ItemGroup>
     <Compile Include="Base\Client.cs" />
     <Compile Include="Base\Extensions.cs" />
+    <Compile Include="Base\GeoIPCountry.cs" />
     <Compile Include="Base\HttpHandler.cs" />
     <Compile Include="Base\HttpServer.cs" />
     <Compile Include="Base\Log.cs" />
     <Compile Include="Base\UdpPacket.cs" />
     <Compile Include="Base\UdpResponse.cs" />
     <Compile Include="Base\UdpServer.cs" />
+    <Compile Include="IWNet\CIServer.cs" />
     <Compile Include="IWNet\IPServer.cs" />
     <Compile Include="IWNet\LogServer.cs" />
     <Compile Include="IWNet\Matchmaking\MatchDummyHandler.cs" />
@@ -63,6 +65,7 @@
     <Compile Include="IWNet\MatchServer.cs" />
     <Compile Include="IWNet\Matchmaking\MatchRequestHostingHandler.cs" />
     <Compile Include="IWNet\Matchmaking\MatchRequestListHandler.cs" />
+    <Compile Include="IWNet\ServerParser.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

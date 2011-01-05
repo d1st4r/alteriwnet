@@ -61,6 +61,16 @@ namespace IWNetServer
 
     public class MatchRegisterHostingHandler : IMatchCommandHandler
     {
+        GeoIPCountry geo;
+
+        public MatchRegisterHostingHandler()
+        {
+            try
+            {
+                geo = new GeoIPCountry("GeoIP.dat");
+            } catch {}
+        }
+
         public void HandleCommand(MatchServer server, Client client, UdpPacket packet, MatchBaseRequestPacket baseRequest)
         {
             var reader = packet.GetReader();
@@ -97,10 +107,36 @@ namespace IWNetServer
             }
             else
             {
-                request.Session.HostXUID = client.XUID;
-                server.Sessions.Add(request.Session);
 
-                Log.Info(string.Format("Registered session by {0}; lobby at {1}", client.XUID.ToString("X16"), request.Session.ExternalIP));
+                if (!Client.IsHostAllowed(client.XUID))
+                {
+                    Log.Info(string.Format("Non-allowed client (XUID {0}) tried to register lobby", client.XUID.ToString("X16")));
+                    return;
+                }
+                else if (!Client.IsHostAllowed(request.Session.ExternalIP.Address))
+                {
+                    Log.Info(string.Format("Non-allowed client (IP {0}) tried to register lobby", request.Session.ExternalIP));
+                    return;
+                }
+                else
+                {
+                    request.Session.Unclean = (CIServer.IsUnclean(client.XUID, packet.GetSource().Address) || CIServer.IsUnclean(client.XUIDAlias, packet.GetSource().Address));
+                    request.Session.HostXUID = client.XUID;
+                    request.Session.Country = "";
+
+                    try
+                    {
+                        var countrycode = geo.GetCountryCode(request.Session.ExternalIP.Address);
+                        Console.WriteLine("Country code of IP address " + request.Session.ExternalIP.ToString() + ": " + countrycode.ToString());
+                            
+                        request.Session.Country = countrycode;
+                    }
+                    catch { }
+
+                    server.Sessions.Add(request.Session);
+
+                    Log.Info(string.Format("Registered session by {0}; lobby at {1}", client.XUID.ToString("X16"), request.Session.ExternalIP));
+                }
             }
 
             // this response appears wrong for now

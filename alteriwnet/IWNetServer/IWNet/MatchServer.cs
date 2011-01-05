@@ -26,7 +26,10 @@ namespace IWNetServer
             XUID = reader.ReadInt64();
 
             // unknown (auth?) data
-            reader.ReadBytes(84);
+            if (reader.BaseStream.Length > 92) // only apply if this data actually exists
+            {
+                reader.ReadBytes(84);
+            }
 
             // command type
             CommandType = reader.ReadByte();
@@ -62,11 +65,23 @@ namespace IWNetServer
         public IPEndPoint InternalIP { get; set; }
         public IPEndPoint ExternalIP { get; set; }
 
+        public bool Unclean { get; set; }
+
+        public string Country { get; set; }
+
         // custom data
         public long HostXUID { get; set; }
         public DateTime LastTouched { get; set; }
 
         public List<MatchSessionClient> Clients { get; set; }
+
+        public bool IsActive
+        {
+            get
+            {
+                return (DateTime.Now - LastTouched).TotalSeconds <= 120;
+            }
+        }
 
         // TODO: implement host keys
 
@@ -170,11 +185,19 @@ namespace IWNetServer
             var reader = packet.GetReader();
             var basePacket = new MatchBaseRequestPacket(reader);
 
-            if (!Client.IsAllowed(basePacket.XUID))
+            var client = Client.Get(basePacket.XUID);
+
+            /*if (!Client.IsAllowed(basePacket.XUID))
             {
                 Log.Info(string.Format("Non-allowed client (XUID {0}) tried to get matches", basePacket.XUID.ToString("X16")));
                 return;
             }
+
+            if (!Client.IsAllowed(client.XUIDAlias))
+            {
+                Log.Info(string.Format("Non-allowed client (XUID {0}) tried to get matches", basePacket.XUID.ToString("X16")));
+                return;
+            }*/
 
             var ipAddress = packet.GetSource().Address;
 
@@ -184,7 +207,6 @@ namespace IWNetServer
                 return;
             }
 
-            var client = Client.Get(basePacket.XUID);
             client.SetLastTouched();
             client.CurrentState = _playlist;
             client.SetLastMatched();
@@ -202,6 +224,11 @@ namespace IWNetServer
             {
                 var session = sessions.First();
 
+                if (CIServer.IsUnclean(session.HostXUID, packet.GetSource().Address))
+                {
+                    session.Unclean = true;
+                }
+
                 foreach (var updateClient in session.Clients)
                 {
                     var updClient = Client.Get(updateClient.XUID);
@@ -218,6 +245,34 @@ namespace IWNetServer
             else
             {
                 Log.Info(string.Format("Client {0} sent unknown match packet {1}", basePacket.XUID.ToString("X16"), basePacket.CommandType));
+            }
+        }
+
+        public static void CleanMyOldMessySessions()
+        {
+            foreach (var serverKV in Servers)
+            {
+                var server = serverKV.Value;
+
+                lock (server.Sessions)
+                {
+                    var canBeSafelyDeleted = (from session in server.Sessions
+                                              where (DateTime.Now - session.LastTouched).TotalSeconds > 180
+                                              select session).ToList(); // ToList is needed as we'll be deleting from the original enumeration
+
+                    foreach (var session in canBeSafelyDeleted)
+                    {
+                        server.Sessions.Remove(session);
+
+                        if (ServerParser.Servers.ContainsKey(session.ExternalIP))
+                        {
+                            ServerParser.Servers.Remove(session.ExternalIP);
+                        }
+                    }
+
+                    Log.Info(string.Format("Deleted {0} sessions", canBeSafelyDeleted.Count));
+                    canBeSafelyDeleted = null; // possibly to help the GC?
+                }
             }
         }
     }

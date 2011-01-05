@@ -22,13 +22,26 @@ namespace IWNetServer
             return (!IPBans.Contains(ip));
         }
 
+        public static bool IsHostAllowed(long xuid)
+        {
+            return (!HostXUIDBans.Contains(xuid));
+        }
+        public static bool IsHostAllowed(IPAddress ip)
+        {
+            return (!HostIPBans.Contains(ip));
+        }
+
         private static List<IPAddress> IPBans { get; set; }
         private static List<long> XUIDBans { get; set; }
+        private static List<IPAddress> HostIPBans { get; set; }
+        private static List<long> HostXUIDBans { get; set; }
 
         public static void UpdateBanList()
         {
             IPBans = new List<IPAddress>();
             XUIDBans = new List<long>();
+            HostIPBans = new List<IPAddress>();
+            HostXUIDBans = new List<long>();
 
             if (!File.Exists("banlist.txt"))
             {
@@ -66,23 +79,35 @@ namespace IWNetServer
                         case "steam":
                             XUIDBans.Add(long.Parse(data[1], System.Globalization.NumberStyles.HexNumber));
                             break;
+                        case "hostip":
+                            HostIPBans.Add(IPAddress.Parse(data[1]));
+                            break;
+                        case "hoststeam":
+                            HostXUIDBans.Add(long.Parse(data[1], System.Globalization.NumberStyles.HexNumber));
+                            break;
                     }
                 }
                 catch (FormatException) { }
             }
+
+            banFile.Close();
         }
 
         public static bool IsVersionAllowed(byte major, byte minor)
         {
             // only allow alterIWnet versions
-            return (major == 1 && ((minor > 30 && minor < 100)));
+            return (major == 1 && ((minor >= 48 && minor < 100)));
+            //return true;
         }
 
         public static Client Get(long xuid)
         {
             if (!XUIDClients.ContainsKey(xuid))
             {
-                XUIDClients.Add(xuid, new Client(xuid));
+                lock (XUIDClients)
+                {
+                    XUIDClients.Add(xuid, new Client(xuid));
+                }
             }
 
             return XUIDClients[xuid];
@@ -90,12 +115,15 @@ namespace IWNetServer
 
         public static List<LogStatistics> GetStatistics()
         {
-            var availableClients = from client in XUIDClients.Values
-                                   where client.IsOnline
-                                   group client by client.CurrentState into state
-                                   select new LogStatistics(state.Key, (short)state.Count());
+            lock (XUIDClients)
+            {
+                var availableClients = from client in XUIDClients.Values
+                                       where client.IsOnline
+                                       group client by client.CurrentState into state
+                                       select new LogStatistics(state.Key, (short)state.Count());
 
-            return availableClients.ToList();
+                return availableClients.ToList();
+            }
         }
 
         public static short GetPlaylistVersion()
@@ -111,6 +139,24 @@ namespace IWNetServer
 
             return 0x17B;
         }
+
+        public static void CleanClientsThatAreLongGone()
+        {
+            lock (XUIDClients)
+            {
+                var canBeSafelyDeleted = (from client in XUIDClients
+                                          where (DateTime.UtcNow - client.Value.LastTouched).TotalSeconds > 600
+                                          select client.Key).ToList(); // ToList is needed as we'll be deleting from the original enumeration
+
+                foreach (var client in canBeSafelyDeleted)
+                {
+                    XUIDClients.Remove(client);
+                }
+
+                Log.Info(string.Format("Deleted {0} clients", canBeSafelyDeleted.Count));
+                canBeSafelyDeleted = null; // possibly to help the GC?
+            }
+        }
         #endregion
 
         static Client()
@@ -121,6 +167,7 @@ namespace IWNetServer
         public Client(long xuid)
         {
             XUID = xuid;
+            XUIDAlias = 0;
         }
 
         public void SetFromLog(LogRequestPacket1 packet)
@@ -167,6 +214,7 @@ namespace IWNetServer
         public short CurrentState { get; set; } // playlist ID or 'random' ID
 
         public long XUID { get; set; }
+        public long XUIDAlias { get; set; }
         public string GamerTag { get; set; }
         public IPEndPoint InternalIP { get; set; }
         public IPEndPoint ExternalIP { get; set; }
