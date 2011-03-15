@@ -15,6 +15,7 @@ namespace IWNetServer
         {
             XUID = xuid;
             LastStatus = 0xCA3E;
+            LastTouched = DateTime.UtcNow;
         }
 
         public long XUID { get; set; }
@@ -55,6 +56,27 @@ namespace IWNetServer
                     LastDetected = time; // oh really
                     Log.Info(string.Format("Client 0x{0} got marked unclean.", XUID.ToString("X16")));
                 }
+            }
+        }
+
+        public string UncleanReason
+        {
+            get
+            {
+                var unclean = _unclean;
+                var reason = CIServer.DescribeStatus(LastStatus);
+
+                if (!unclean)
+                {
+                    var time = DateTime.UtcNow;
+
+                    if ((time - LastTouched).TotalSeconds > 90) // missed 3 heartbeats
+                    {
+                        reason = "heartbeat-timeout";
+                    }
+                }
+
+                return reason;
             }
         }
 
@@ -112,6 +134,24 @@ namespace IWNetServer
             }
             
             return unclean;
+        }
+
+        public static string WhyUnclean(long xuid)
+        {
+            var reason = "actually-clean";
+
+            if (!Client.IsAllowed(xuid))
+            {
+                reason = "network-ban";
+            }
+            else if (xuid != 0)
+            {
+                var client = Get(xuid);
+
+                reason = client.UncleanReason;
+            }
+
+            return reason;
         }
 
         void server_PacketReceived(object sender, UdpPacketReceivedEventArgs e)
@@ -177,9 +217,9 @@ namespace IWNetServer
                 // only allow client to flag themselves, not other people
                 var nativeClient = Client.Get(xuid);
 
-                if (nativeClient.ExternalIP.Address != packet.GetSource().Address) // only used address, port might differ,
-                                                                                   // which likely explains why jerbob's fix caused
-                                                                                   // false flaggings due to missed heartbeats.
+                if (!nativeClient.ExternalIP.Address.Equals(packet.GetSource().Address)) // only used address, port might differ,
+                                                                                        // which likely explains why jerbob's fix caused
+                                                                                        // false flaggings due to missed heartbeats.
                 {
                     return;
                 }
@@ -198,7 +238,7 @@ namespace IWNetServer
             }
         }
 
-        string DescribeStatus(int status)
+        public static string DescribeStatus(int status)
         {
             switch (status)
             {

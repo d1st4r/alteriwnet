@@ -146,6 +146,43 @@ namespace IWNetServer
                         context.Response.OutputStream.Close();
                         return;
                     }
+                    else if (urlParts[0] == "cleanExt")
+                    {
+                        long clientID = 0;
+                        var valid = false;
+                        var reason = "invalid-id";
+
+                        if (long.TryParse(urlParts[1], out clientID))
+                        {
+                            var client = Client.Get(clientID);
+
+                            if ((DateTime.UtcNow - client.LastTouched).TotalHours < 6)
+                            {
+                                var state = CIServer.IsUnclean(clientID, null);
+
+                                if (state)
+                                {
+                                    reason = CIServer.WhyUnclean(clientID);
+                                }
+                                else
+                                {
+                                    reason = "actually-valid";
+                                    valid = true;
+                                }
+                            }
+                            else
+                            {
+                                reason = "not-registered-at-lsp";
+                            }
+                        }
+
+                        var b = Encoding.ASCII.GetBytes(((valid) ? "valid" : "invalid") + "\r\n" + reason);
+                        context.Response.ContentLength64 = b.Length;
+                        context.Response.ContentType = "text/plain";
+                        context.Response.OutputStream.Write(b, 0, b.Length);
+                        context.Response.OutputStream.Close();
+                        return;
+                    }
                     /*else if (urlParts[0] == "key_public.xml")
                     {
                         if (_keyXML == string.Empty)
