@@ -31,8 +31,8 @@ namespace IWNetServer
         {
             if (_rsa == null)
             {
-                _rsa = new RSACryptoServiceProvider(2048);
-                _rsa.FromXmlString(File.ReadAllText("key-private.xml"));
+                //_rsa = new RSACryptoServiceProvider(2048);
+                //_rsa.FromXmlString(File.ReadAllText("key-private.xml"));
             }
 
             _thread = new Thread(new ThreadStart(Run));
