@@ -1,0 +1,1 @@
+alterIWnet is a project emulating the IWNet server system of Activision/Infinity Ward's best-selling Call of Duty: Modern Warfare 2 video game.
